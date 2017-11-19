@@ -11,6 +11,7 @@ module Pos.GState.BlockExtra
        , getFirstGenesisBlockHash
        , BlockExtraOp (..)
        , foldlUpWhileM
+       , loadHashesUpWhile
        , loadHeadersUpWhile
        , loadBlocksUpWhile
        , initGStateBlockExtra
@@ -28,14 +29,14 @@ import           Pos.Block.Core       (Block, BlockHeader, blockHeader)
 import           Pos.Block.Slog.Types (LastBlkSlots, noLastBlkSlots)
 import           Pos.Block.Types      (Blund)
 import           Pos.Core             (FlatSlotId, HasConfiguration, HasHeaderHash,
-                                       HeaderHash, headerHash, slotIdF, unflattenSlotId,
-                                       genesisHash)
+                                       HeaderHash, genesisHash, headerHash, slotIdF,
+                                       unflattenSlotId)
 import           Pos.Crypto           (shortHashF)
 import           Pos.DB               (DBError (..), MonadDB, MonadDBRead,
                                        RocksBatchOp (..), dbSerializeValue)
 import           Pos.DB.Block         (MonadBlockDB, blkGetBlund)
 import           Pos.DB.GState.Common (gsGetBi, gsPutBi)
-import           Pos.Util.Chrono      (OldestFirst (..))
+import           Pos.Util.Chrono      (NewestFirst (..), OldestFirst (..))
 import           Pos.Util.Util        (maybeThrow)
 
 ----------------------------------------------------------------------------
@@ -152,6 +153,29 @@ loadUpWhile morph start condition = OldestFirst . reverse <$>
         (\b h -> condition (snd b) h)
         (\l e -> pure (e : l))
         []
+
+-- | Bottom-top hashes traversal, basically iterating forward links
+-- with condition. Simpler/quicker, doesn't deserialize blunds.
+loadHashesUpWhile
+    :: forall m a. (HasHeaderHash a, MonadDBRead m)
+    => a
+    -> (HeaderHash -> Int -> Bool)
+    -> m (NewestFirst [] HeaderHash)
+loadHashesUpWhile start condition =
+    NewestFirst <$> loadUpWhileDo (headerHash start) 0 []
+  where
+    loadUpWhileDo ::
+           HeaderHash
+        -> Int
+        -> [HeaderHash]
+        -> m [HeaderHash]
+    loadUpWhileDo curH height !res = do
+        mbNextLink <- resolveForwardLink curH
+        if | not (condition curH height) -> pure res
+           | Just nextLink <- mbNextLink ->
+               loadUpWhileDo nextLink (succ height) (curH:res)
+           | otherwise -> pure res
+
 
 -- | Returns headers loaded up.
 loadHeadersUpWhile
