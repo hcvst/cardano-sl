@@ -5,25 +5,20 @@ module Test.Pos.Wallet.Web.Methods.BackupDefaultAddressesSpec
 import           Universum
 
 import           Data.Default (def)
-import           Data.List ((!!))
-import           Formatting (build, sformat, (%))
+import           Pos.Crypto.Signing.Safe (emptyPassphrase)
 import           Pos.Launcher (HasConfigurations)
+import           Pos.Util.BackupPhrase (BackupPhrase (..))
 import           Pos.Util.CompileInfo (HasCompileInfo, withCompileInfo)
-import           Pos.Wallet.Web.Account (myRootAddresses)
-import           Pos.Wallet.Web.ClientTypes (CFilePath(..))
-import           Pos.Wallet.Web.Methods.Backup (importWalletJSON,
-                                                exportWalletJSON)
-import           Pos.Wallet.Web.Methods.Logic (getAccounts, getWallet)
+import           Pos.Wallet.Web.Backup (getWalletBackup)
+import           Pos.Wallet.Web.ClientTypes (CWallet(..), CWalletMeta(..),
+                                             CWalletInit(..), CWalletAssurance(..))
+import           Pos.Wallet.Web.Methods.Backup (restoreWalletFromBackup)
+-- import           Pos.Wallet.Web.Methods.Logic (deleteWallet)
+import           Pos.Wallet.Web.Methods.Restore (newWallet)
 import           Test.Hspec (Spec, describe)
 import           Test.Hspec.QuickCheck (modifyMaxSuccess)
-import           Test.Pos.Util (assertProperty, maybeStopProperty,
-                                withDefConfigurations)
+import           Test.Pos.Util (assertProperty, withDefConfigurations)
 import           Test.Pos.Wallet.Web.Mode (walletPropertySpec)
-import           Test.Pos.Wallet.Web.Util (importSomeWallets,
-                                           mostlyEmptyPassphrases)
-import           Test.QuickCheck (choose)
-import           Test.QuickCheck.Monadic (pick)
-
 
 spec :: Spec
 spec = withCompileInfo def $
@@ -33,20 +28,21 @@ spec = withCompileInfo def $
 
 restoreWalletAddressFromBackupSpec :: (HasCompileInfo, HasConfigurations) => Spec
 restoreWalletAddressFromBackupSpec = walletPropertySpec restoreWalletAddressFromBackupDesc $ do
-    passphrases <- importSomeWallets mostlyEmptyPassphrases
-    let l = length passphrases
-    rootsWIds <- lift myRootAddresses
-    idx <- pick $ choose (0, l - 1)
-    let walId = rootsWIds !! idx
-    let noOneAccount = sformat ("There is no one account for wallet: "%build) walId
-    _ <- maybeStopProperty noOneAccount =<< (lift $ head <$> getAccounts (Just walId))
-    let filePath = CFilePath ("walletExport.json" :: Text)
-    wallet <- lift $ getWallet walId
-    _ <- lift $ exportWalletJSON walId filePath
-    walletImport <- lift $ importWalletJSON filePath
-    assertProperty(walletImport == wallet) $ "Exported wallet is not the same as imported one!"
+    let cWmeta = CWalletMeta { cwName = "WalletBackup test", cwAssurance = CWANormal, cwUnit = 0 }
+        backupPhrase =  BackupPhrase { bpToList =
+            ["name" , "skull" , "merit" , "night"
+            , "idle" , "bone" , "exact" , "inflict"
+            , "legal" , "predict" , "certain" , "napkin" :: Text]
+            }
+        cwInit = CWalletInit { cwInitMeta = cWmeta, cwBackupPhrase = backupPhrase }
+    nWallet <- lift $ newWallet emptyPassphrase cwInit
+    wBackup <- lift $ getWalletBackup (cwId nWallet)
+    -- _ <- lift $ deleteWallet (cwId nWallet)
+    restoredWallet <- lift $ restoreWalletFromBackup wBackup
+    assertProperty(nWallet == restoredWallet) $ "Exported wallet is not the same as imported one!"
     where
         restoreWalletAddressFromBackupDesc =
-            "Get arbitrary wallet and check if it has at least one account;" <>
-            "Export wallet and then import it;" <>
-            "Check if the imported wallet is the same one; "
+            "Create new wallet; " <>
+            "Create wallet backup; " <>
+            "Delete created wallet; " <>
+            "Check if the wallet is restored from backup; "
