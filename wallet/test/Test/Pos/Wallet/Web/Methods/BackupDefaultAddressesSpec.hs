@@ -28,7 +28,7 @@ spec = withCompileInfo def $
 
 restoreWalletAddressFromBackupSpec :: (HasCompileInfo, HasConfigurations) => Spec
 restoreWalletAddressFromBackupSpec = walletPropertySpec restoreWalletAddressFromBackupDesc $ do
-    let cWmeta = CWalletMeta { cwName = "WalletBackup test", cwAssurance = CWANormal, cwUnit = 0 }
+    let cWmeta = CWalletMeta { cwName = "WalletBackup test", cwAssurance = CWANormal, cwUnit = 2 }
         backupPhrase =  BackupPhrase { bpToList =
             ["name" , "skull" , "merit" , "night"
             , "idle" , "bone" , "exact" , "inflict"
