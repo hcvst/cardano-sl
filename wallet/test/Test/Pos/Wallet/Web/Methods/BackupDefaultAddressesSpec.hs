@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-local-binds #-}
 module Test.Pos.Wallet.Web.Methods.BackupDefaultAddressesSpec
        ( spec
        ) where
@@ -10,7 +12,7 @@ import           Pos.Launcher (HasConfigurations)
 import           Pos.Util.BackupPhrase (BackupPhrase (..))
 import           Pos.Util.CompileInfo (HasCompileInfo, withCompileInfo)
 import           Pos.Wallet.Web.Backup (getWalletBackup)
-import           Pos.Wallet.Web.ClientTypes (CWallet(..), CWalletMeta(..),
+import           Pos.Wallet.Web.ClientTypes (CId (..), Wal, CHash (..), CWallet(..), CWalletMeta(..),
                                              CWalletInit(..), CWalletAssurance(..))
 import           Pos.Wallet.Web.Methods.Backup (restoreWalletFromBackup)
 -- import           Pos.Wallet.Web.Methods.Logic (deleteWallet)
@@ -28,15 +30,6 @@ spec = withCompileInfo def $
 
 restoreWalletAddressFromBackupSpec :: (HasCompileInfo, HasConfigurations) => Spec
 restoreWalletAddressFromBackupSpec = walletPropertySpec restoreWalletAddressFromBackupDesc $ do
-    let cWmeta = CWalletMeta { cwName = "WalletBackup test", cwAssurance = CWANormal, cwUnit = 2 }
-        backupPhrase =  BackupPhrase { bpToList =
-            ["name" , "skull" , "merit" , "night"
-            , "idle" , "bone" , "exact" , "inflict"
-            , "legal" , "predict" , "certain" , "napkin" :: Text]
-            }
-        cwInit = CWalletInit { cwInitMeta = cWmeta, cwBackupPhrase = backupPhrase }
-    nWallet <- lift $ newWallet emptyPassphrase cwInit
-    wBackup <- lift $ getWalletBackup (cwId nWallet)
     -- _ <- lift $ deleteWallet (cwId nWallet)
     restoredWallet <- lift $ restoreWalletFromBackup wBackup
     assertProperty(nWallet == restoredWallet) $ "Exported wallet is not the same as imported one!"
