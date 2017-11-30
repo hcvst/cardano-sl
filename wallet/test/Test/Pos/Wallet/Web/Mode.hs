@@ -23,7 +23,6 @@ import           Universum
 import qualified Control.Concurrent.STM as STM
 import           Control.Lens (lens, makeClassy, makeLensesWith)
 import           Data.Default (def)
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Text.Buildable
 import           Ether.Internal (HasLens (..))
 import           Formatting (bprint, build, formatToString, (%))
@@ -49,9 +48,7 @@ import           Pos.Context (ConnectedPeers (..), LastKnownHeader, LastKnownHea
                               ProgressHeader, ProgressHeaderTag, RecoveryHeader, RecoveryHeaderTag)
 import           Pos.Core (HasConfiguration, Timestamp (..), largestHDAddressBoot)
 import           Pos.Core.Txp (TxAux)
-import           Pos.Crypto (PassPhrase, PublicKey (..))
-import           Pos.Crypto.Signing.Safe (EncryptedSecretKey (..), safeDeterministicKeyGen,
-                                          emptyPassphrase)
+import           Pos.Crypto (PassPhrase)
 import           Pos.DB (MonadDB (..), MonadDBRead (..), MonadGState (..))
 import qualified Pos.DB as DB
 import qualified Pos.DB.Block as DB
@@ -89,10 +86,7 @@ import           Pos.Wallet.Web.Networking (MonadWalletSendActions (..))
 
 import           Pos.Wallet.WalletMode (MonadBlockchainInfo (..), MonadUpdates (..),
                                         WalletMempoolExt)
-import           Pos.Wallet.Web.Backup (AccountMetaBackup (..), WalletBackup (..),
-                                        WalletMetaBackup (..))
-import           Pos.Wallet.Web.ClientTypes (AccountId, CAccountMeta (..), CWalletMeta (..),
-                                             CWalletAssurance (..))
+import           Pos.Wallet.Web.ClientTypes (AccountId)
 import           Pos.Wallet.Web.Mode (getBalanceDefault, getNewAddressWebWallet, getOwnUtxosDefault)
 import           Pos.Wallet.Web.State (MonadWalletDB, WalletState, openMemState)
 import           Pos.Wallet.Web.Tracking.BListener (onApplyBlocksWebWallet,
@@ -134,29 +128,6 @@ instance Buildable WalletTestParams where
 instance Show WalletTestParams where
     show = formatToString build
 
----------------------------------------------------------------------------
--- WalletBackup
----------------------------------------------------------------------------
-
-instance Arbitrary WalletBackup where
-    arbitrary = do
-        cwNameT <- arbitrary
-        caNameT <- arbitrary
-        wbInt   <- arbitrary
-        let hm = HM.empty
-        (_, esk) <- genEncryptedSecretKey
-        let wMetaBackup = WalletMetaBackup $ CWalletMeta { cwName = (cwNameT :: Text ), cwAssurance = CWANormal, cwUnit = 1 }
-        return $ WalletBackup
-            { wbSecretKey = esk
-            , wbMeta = wMetaBackup
-            , wbAccounts = HM.insert wbInt (AccountMetaBackup $ CAccountMeta { caName = caNameT }) hm
-            }
-
-genEncryptedSecretKey :: Gen (PublicKey, EncryptedSecretKey)
-genEncryptedSecretKey = do
-    x <- arbitrary
-    return $ safeDeterministicKeyGen x emptyPassphrase
-
 ----------------------------------------------------------------------------
 -- Wallet context
 ----------------------------------------------------------------------------
@@ -177,7 +148,6 @@ data WalletTestContext = WalletTestContext
     -- ^ Stub
     , wtcConnectedPeers   :: !ConnectedPeers
     -- ^ Stub
-
     , wtcSentTxs          :: !(TVar [TxAux])
     -- ^ Sent transactions via MonadWalletSendActions
     }
