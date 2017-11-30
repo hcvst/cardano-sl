@@ -401,7 +401,6 @@ test-suite cardano-wallet-test
                      , stm
                      , text-format
                      , universum >= 0.1.11
-                     , unordered-containers
 
   hs-source-dirs:      test
   default-language:    Haskell2010
