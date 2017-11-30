@@ -5,20 +5,16 @@ module Test.Pos.Wallet.Web.Methods.BackupDefaultAddressesSpec
 import           Universum
 
 import           Data.Default (def)
-import           Pos.Crypto.Signing.Safe (emptyPassphrase)
 import           Pos.Launcher (HasConfigurations)
-import           Pos.Util.BackupPhrase (BackupPhrase (..))
 import           Pos.Util.CompileInfo (HasCompileInfo, withCompileInfo)
-import           Pos.Wallet.Web.Backup (getWalletBackup, WalletBackup (..))
-import           Pos.Wallet.Web.ClientTypes (CId (..), Wal, CHash (..), CWallet(..), CWalletMeta(..),
-                                             CWalletInit(..), CWalletAssurance(..))
+import           Pos.Wallet.Web.ClientTypes (CWallet(..))
 import           Pos.Wallet.Web.Methods.Backup (restoreWalletFromBackup)
-import           Pos.Wallet.Web.Methods.Restore (newWallet)
 import           Test.Hspec (Spec, describe)
 import           Test.Hspec.QuickCheck (modifyMaxSuccess)
 import           Test.Pos.Util (assertProperty, withDefConfigurations)
 import           Test.Pos.Wallet.Web.Mode (walletPropertySpec)
-import           Test.QuickCheck (Arbitrary (..))
+import           Test.QuickCheck (Arbitrary(..))
+import           Test.QuickCheck.Monadic (pick)
 
 spec :: Spec
 spec = withCompileInfo def $
@@ -28,12 +24,12 @@ spec = withCompileInfo def $
 
 restoreWalletAddressFromBackupSpec :: (HasCompileInfo, HasConfigurations) => Spec
 restoreWalletAddressFromBackupSpec = walletPropertySpec restoreWalletAddressFromBackupDesc $ do
-    walletBackup <- lift arbitrary
+    walletBackup <- pick arbitrary
     restoredWallet <- lift $ restoreWalletFromBackup walletBackup
-    assertProperty((cwAccountsNumber restoredWallet) > 0) $ "Exported wallet has no accounts!"
+    let noOfAccounts = cwAccountsNumber restoredWallet
+    assertProperty(noOfAccounts > 0) $ "Exported wallet has no accounts!"
     where
         restoreWalletAddressFromBackupDesc =
-            "Create new wallet; " <>
-            "Create wallet backup; " <>
-            "Delete created wallet; " <>
-            "Check if the wallet is restored from backup; "
+            "Generate wallet backup; " <>
+            "Restore it; " <>
+            "Check if the wallet has some accounts; "
