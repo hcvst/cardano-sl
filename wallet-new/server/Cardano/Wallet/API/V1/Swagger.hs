@@ -79,8 +79,16 @@ newDescr :: Typeable a => proxy a -> T.Text
 newDescr (p :: proxy a) =
     "A type represending an request for creating a(n) " <> renderType p <> "."
 
+-- | Derives all fields.
+allFieldsFromJSON :: forall a proxy. (Arbitrary a, ToJSON a) => proxy a -> Set T.Text
+allFieldsFromJSON _ =
+    case toJSON (genExample @a) of
+        Object o -> Set.fromList $ HM.keys o
+        _        -> mempty
+
 -- | Automatically derives the subset of readOnly fields by diffing the JSON representations of the
 -- given types.
+-- FIXME: what about 'Bool' fields?
 readOnlyFieldsFromJSON :: forall a b proxy. (Update a ~ b, Arbitrary a, ToJSON a, Arbitrary b, ToJSON b)
                        => proxy a -> Set T.Text
 readOnlyFieldsFromJSON _ =
@@ -226,11 +234,15 @@ instance ToDocs Account where
   readOnlyFields   = readOnlyFieldsFromJSON
   descriptionFor _ = "An Account."
 
+instance ToDocs AddressInfo where
+  readOnlyFields   = allFieldsFromJSON  -- this can't be updated
+  descriptionFor _ = "An Address."
+
 instance ToDocs AccountUpdate where
   descriptionFor _ = updateDescr (Proxy @Account)
 
 instance ToDocs Address where
-  descriptionFor _ = "An Address."
+  descriptionFor _ = "An Address ID."
 
 instance ToDocs WalletId where
   descriptionFor _ = "A Wallet ID."
@@ -240,6 +252,9 @@ instance ToDocs Wallet where
 
 instance ToDocs NewWallet where
   descriptionFor _ = newDescr (Proxy @Wallet)
+
+instance ToDocs NewAddress where
+  descriptionFor _ = newDescr (Proxy @AddressInfo)
 
 instance ToDocs WalletUpdate where
   descriptionFor _ = updateDescr (Proxy @Wallet)
@@ -294,6 +309,9 @@ possibleValuesOf (Proxy :: Proxy a) = T.intercalate "," . map show $ ([minBound.
 instance ToSchema Account where
   declareNamedSchema = annotate fromArbitraryJSON
 
+instance ToSchema AddressInfo where
+  declareNamedSchema = annotate fromArbitraryJSON
+
 instance ToSchema AccountUpdate where
   declareNamedSchema = annotate fromArbitraryJSON
 
@@ -310,6 +328,9 @@ instance ToSchema Wallet where
   declareNamedSchema = annotate fromArbitraryJSON
 
 instance ToSchema NewWallet where
+  declareNamedSchema = annotate fromArbitraryJSON
+
+instance ToSchema NewAddress where
   declareNamedSchema = annotate fromArbitraryJSON
 
 instance ToSchema WalletUpdate where

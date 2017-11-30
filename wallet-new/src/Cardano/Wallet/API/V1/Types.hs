@@ -31,6 +31,9 @@ module Cardano.Wallet.API.V1.Types (
   -- * Accounts
   , Account (..)
   , AccountId
+  -- * Addresses
+  , AddressInfo (..)
+  , NewAddress (..)
   -- * Payments
   , Payment (..)
   , PaymentDistribution (..)
@@ -305,12 +308,12 @@ instance Arbitrary Wallet where
                      <*> pure "My wallet"
                      <*> arbitrary
 
-type AccountId = Text
+type AccountId = Word32
 
 -- | A wallet's 'Account'.
 data Account = Account
   { accId        :: !AccountId
-  , accAddresses :: [Core.Address]
+  , accAddresses :: [Core.Address]  -- TODO: here should be 'AddressInfo'
   , accAmount    :: !Core.Coin
   , accName      :: !Text
   -- ^ The Account name.
@@ -321,11 +324,11 @@ data Account = Account
 deriveJSON Serokell.defaultOptions ''Account
 
 instance Arbitrary Account where
-  arbitrary = Account . fromString <$> elements ["DEADBeef", "123456"]
-                                   <*> listOf1 arbitrary
-                                   <*> arbitrary
-                                   <*> pure "My account"
-                                   <*> arbitrary
+  arbitrary = Account <$> arbitrary
+                      <*> listOf1 arbitrary
+                      <*> arbitrary
+                      <*> pure "My account"
+                      <*> arbitrary
 
 data AccountUpdate = AccountUpdate {
     uaccName      :: !Text
@@ -335,6 +338,35 @@ deriveJSON Serokell.defaultOptions ''AccountUpdate
 
 instance Arbitrary AccountUpdate where
   arbitrary = AccountUpdate . fromString <$> pure "myAccount"
+
+-- | Summary about single address.
+data AddressInfo = AddressInfo
+  { addrId       :: !Core.Address
+  , addrBalance  :: !Core.Coin
+  , addrIsUsed   :: !Bool
+  , addrIsChange :: !Bool
+  } deriving (Show, Generic)
+
+deriveJSON Serokell.defaultOptions ''AddressInfo
+
+instance Arbitrary AddressInfo where
+  arbitrary = AddressInfo <$> arbitrary
+                          <*> arbitrary
+                          <*> arbitrary
+                          <*> arbitrary
+
+data NewAddress = NewAddress
+  { newaddrSpendingPassword :: !(Maybe SpendingPassword)
+  , newaddrAccountId        :: !AccountId
+  , newaddrWalletId         :: !WalletId
+  } deriving (Show, Eq, Generic)
+
+deriveJSON Serokell.defaultOptions ''NewAddress
+
+instance Arbitrary NewAddress where
+  arbitrary = NewAddress <$> arbitrary
+                         <*> arbitrary
+                         <*> arbitrary
 
 -- | A type incapsulating a password update request.
 data PasswordUpdate = PasswordUpdate {
@@ -640,3 +672,4 @@ type family Update (original :: *) :: * where
 type family New (original :: *) :: * where
   New Wallet  = NewWallet
   New Account = AccountUpdate -- POST == PUT
+  New Core.Address = NewAddress
